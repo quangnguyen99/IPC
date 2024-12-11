@@ -8,14 +8,17 @@
 
 const int port = 8080;
 const int bsize = 1024;
+const int lineSize = 1024;
+const int fileSize = 10000;
 
+void cleanup(char **lines, int numLines, FILE *file);
 void editFile(char *filename);
 
 int main(int argc, char *argv[]) {
     int sock = 0;
     struct sockaddr_in servAddr;
     char buffer[bsize];
-    char filename[] = "text.txt";
+    char filename[] = "text.txt"; // I use fixed file name for this program
     ssize_t bytesReceived;
 
     sock = socket(AF_INET, SOCK_STREAM, 0);
@@ -69,10 +72,8 @@ int main(int argc, char *argv[]) {
     return 0;
 }
 
-// Edit the file
+// Edit file
 void editFile(char *filename) {
-    const int lineSize = 1024;
-    const int fileSize = 10000;
     char **lines = malloc(fileSize * sizeof(char *));
     int numLines = 0;
 
@@ -160,16 +161,27 @@ void editFile(char *filename) {
                 printf("END FILE\n");
                 break;
             case 0:
-                fseek(ourFile, 0, SEEK_SET);
-                for (int i = 0; i < numLines; i++) {
-                    fprintf(ourFile, "%s", lines[i]);
-                    free(lines[i]);
-                }
-                fclose(ourFile);
-                free(lines);
+                cleanup(lines, numLines, ourFile);
                 return;
             default:
                 printf("Invalid option. Try again.\n");
         }
     }
+}
+
+//Cleanup
+void cleanup(char **lines, int numLines, FILE *file) {
+    fseek(file, 0, SEEK_SET);
+
+    for (int i = 0; i < numLines; i++) {
+        fprintf(file, "%s", lines[i]);
+        free(lines[i]);
+    }
+
+    long newFileSize = ftell(file);
+    fflush(file);
+    ftruncate(fileno(file), newFileSize);
+
+    fclose(file);
+    free(lines);
 }
