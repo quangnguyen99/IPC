@@ -4,59 +4,39 @@
 #include <unistd.h>
 #include <arpa/inet.h>
 #include <sys/socket.h>
+#include <sys/types.h>
 #include <fcntl.h>
+#include <netinet/in.h>
 #include <sys/stat.h>
 
-#define PORT 8080
-#define BSIZE 1024
+const int port = 8080;
+const int bsize = 1024;
 
 int main() {
     int serverFd, newSocket;
     struct sockaddr_in address;
     socklen_t addrlen = sizeof(address);
-    char buffer[BSIZE];
-    ssize_t bytesRead, bytesSent;
+    char buffer[bsize];
+    ssize_t bytesRead;
 
     serverFd = socket(AF_INET, SOCK_STREAM, 0);
-    if (serverFd == 0) {
-        perror("Socket failed");
-        exit(EXIT_FAILURE);
-    }
 
     address.sin_family = AF_INET;
     address.sin_addr.s_addr = INADDR_ANY;
-    address.sin_port = htons(PORT);
+    address.sin_port = htons(port);
 
-    if (bind(serverFd, (struct sockaddr *)&address, sizeof(address)) < 0) {
-        perror("Bind failed");
-        close(serverFd);
-        exit(EXIT_FAILURE);
-    }
+    bind(serverFd, (struct sockaddr *)&address, addrlen);
 
-    if (listen(serverFd, 3) < 0) {
-        perror("Listen failed");
-        close(serverFd);
-        exit(EXIT_FAILURE);
-    }
+    listen(serverFd, 3);
 
-    printf("Server listening on port %d...\n", PORT);
+    printf("Server listening on port %d...\n", port);
 
     while (1) {
         newSocket = accept(serverFd, (struct sockaddr *)&address, &addrlen);
-        if (newSocket < 0) {
-            perror("Accept failed");
-            continue;
-        }
 
-        memset(buffer, 0, BSIZE);
-        ssize_t filenameLen = read(newSocket, buffer, BSIZE - 1);
-        if (filenameLen <= 0) {
-            perror("Failed to read filename");
-            close(newSocket);
-            continue;
-        }
-
-        buffer[filenameLen] = '\0'; // Null-terminate the filename
+        memset(buffer, 0, bsize);
+        ssize_t filenameLen = read(newSocket, buffer, bsize - 1);
+        buffer[filenameLen] = '\0';
         printf("Client requested file: %s\n", buffer);
 
         int fileFd = open(buffer, O_RDONLY);
@@ -66,30 +46,21 @@ int main() {
             continue;
         }
 
-        printf("Sending file data...\n");
-        while ((bytesRead = read(fileFd, buffer, BSIZE)) > 0) {
-            bytesSent = write(newSocket, buffer, bytesRead);
-            if (bytesSent < 0) {
-                perror("Failed to send file content");
-                break;
-            }
+        while ((bytesRead = read(fileFd, buffer, bsize)) > 0) {
+            write(newSocket, buffer, bytesRead);
         }
         close(fileFd);
+        shutdown(newSocket, SHUT_WR);
+        printf("File sent to client. Waiting for updated file...\n");
 
-        printf("Receiving updated file from client...\n");
-        int updatedFileFd = open(buffer, O_WRONLY | O_CREAT | O_TRUNC, 0644);
-        if (updatedFileFd < 0) {
-            perror("Failed to create updated file");
-            close(newSocket);
-            continue;
+        int updatedFd = open("text.txt", O_WRONLY | O_CREAT | O_TRUNC, 0644);
+
+        while ((bytesRead = read(newSocket, buffer, bsize)) > 0) {
+            write(updatedFd, buffer, bytesRead);
         }
+        close(updatedFd);
 
-        while ((bytesRead = read(newSocket, buffer, BSIZE)) > 0) {
-            write(updatedFileFd, buffer, bytesRead);
-        }
-        close(updatedFileFd);
-
-        printf("Updated file saved.\n");
+        printf("Updated file received and saved as '%s'.\n", buffer);
         close(newSocket);
     }
 
