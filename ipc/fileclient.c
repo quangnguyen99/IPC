@@ -23,7 +23,6 @@ int main(int argc, char *argv[]) {
 
     sock = socket(AF_INET, SOCK_STREAM, 0);
     if (sock < 0) {
-        perror("Socket creation failed");
         return 1;
     }
 
@@ -32,7 +31,6 @@ int main(int argc, char *argv[]) {
     inet_pton(AF_INET, "127.0.0.1", &servAddr.sin_addr);
 
     if (connect(sock, (struct sockaddr *)&servAddr, sizeof(servAddr)) < 0) {
-        perror("Connection failed");
         close(sock);
         return 1;
     }
@@ -55,7 +53,7 @@ int main(int argc, char *argv[]) {
     }
     fclose(file);
 
-    printf("File received and saved as '%s'.\n", filename);
+    printf("File received and saved\n");
 
     editFile(filename);
 
@@ -79,7 +77,7 @@ void editFile(char *filename) {
 
     FILE *ourFile = fopen(filename, "r+");
     if (!ourFile) {
-        perror("Error opening file for editing");
+        perror("Error opening file");
         return;
     }
 

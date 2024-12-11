@@ -41,7 +41,7 @@ int main() {
 
         int fileFd = open(buffer, O_RDONLY);
         if (fileFd < 0) {
-            perror("Error opening file");
+            perror("Error opening file!");
             close(newSocket);
             continue;
         }
@@ -51,7 +51,7 @@ int main() {
         }
         close(fileFd);
         shutdown(newSocket, SHUT_WR);
-        printf("File sent to client. Waiting for updated file...\n");
+        printf("File sent to client.\n");
 
         int updatedFd = open("text.txt", O_WRONLY | O_CREAT | O_TRUNC, 0644);
 
@@ -60,7 +60,7 @@ int main() {
         }
         close(updatedFd);
 
-        printf("Updated file received and saved as '%s'.\n", buffer);
+        printf("Updated file saved.\n");
         close(newSocket);
     }
 
